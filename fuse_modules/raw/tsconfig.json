@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+		"inlineSources": true,
+    "noImplicitAny": false,
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "target": "es6",
+    "lib": [
+      "dom",
+      "es5"
+    ],
+    "allowSyntheticDefaultImports": true,
+    "allowJs": true
+  }
+}
