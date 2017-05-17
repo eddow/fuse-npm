@@ -13,8 +13,7 @@ const fuse = FuseBox.init({
 		HTMLPlugin(),
 		JSONPlugin()
 	],
-	package: 'fuse-npm',
-	globals: {'fuse-npm': '*'}
+	package: 'fuse-npm'
 });
 fuse.bundle("fuse-npm")
 	.watch()

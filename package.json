@@ -2,7 +2,7 @@
   "name": "fuse-npm",
   "version": "1.0.0",
   "description": "",
-  "main": "dist/fuse-npm.js",
+  "main": "index.js",
   "scripts": {
     "test": "test/index.js"
   },

@@ -6,8 +6,8 @@ import {mv, mkdir, test} from 'shelljs'
 import {readFileSync, writeFileSync} from 'fs'
 
 declare var process: any;
-declare function require(fileName: string): any;
-
+//TODO1: separate in several files
+//TODO3: multi-task : centralise transpilations to have 1 promise for 1 file transpiled that is waited if the file is asked a second time)
 export interface NpmClientOptions {
 	downloadPath?: string	//temporary download path
 	modulesPath?: string
@@ -35,7 +35,7 @@ var defaultConfig : NpmClientOptions = {
 
 function npmResolve<T>(obj, fct, ...args: any[]) {
 	return new Promise<T>((resolve, reject)=> {
-		obj[fct].apply(obj, [...args, (err, value)=> {
+		obj[fct].apply(obj, [...args, (err, value: T)=> {
 			if(err) reject(err);
 			else resolve(value);
 		}]);
@@ -46,13 +46,17 @@ function mSpec(str: string) : ModuleSpec {
 	return (split => <ModuleSpec>{name: split[0], version: split[1]})(str.split('@'));
 }
 
+function json(file) {
+	return JSON.parse(readFileSync(file, 'utf8'));
+}
+
 class Versions {
 	file: string
 	constructor(config: NpmClientOptions) {
 		this.file = join(config.rootPath, config.versionCacheFile);
 	}
 	read() {
-		return test('-f', this.file) ? JSON.parse(readFileSync(this.file, 'utf8')) : {};
+		return test('-f', this.file) ? json(this.file) : {};
 	}
 	get(semver:string) {
 		return this.read()[semver];
@@ -79,14 +83,15 @@ export class NpmClient {
 			return npm;
 		});
 	}
-	async command<T>(command: string, ...args: any[]) : T {
+	async command<T>(command: string, ...args: any[]) : Promise<T> {
 		var npm = await this.npmPromise;
-		return await npmResolve(npm, command, ...args);
+		return await npmResolve<T>(npm, command, ...args);
 	}
 	async lastVer(mod:string) {	//use var semver = require('semver')?
 		return Object.keys(await this.command('view', mod, 'version')).pop();
 	}
-	async version(mod: string) {
+	async version(mod: string, version?: string) {
+		if(version) mod += '@' + version;
 		var rv = this.versions.get(mod);
 		if(rv) return rv;
 		return this.lastVer(mod).then(rv=> {
@@ -134,7 +139,7 @@ export class NpmModule implements ModuleSpec {
 		var {rootPath, modulesPath} = this.client.config;
 		return join(rootPath, modulesPath, this.name+'@'+this.version);
 	}
-	fuse(opts: ModuleFuseOptions): Promise<string> {
+	fuse(opts: ModuleFuseOptions = {}): Promise<string> {
 		var {rootPath, devPath, prodPath} = this.client.config,
 			fusedPath = this.production? prodPath : devPath,
 			filePath = join(rootPath, fusedPath, this.fileName);
@@ -142,7 +147,7 @@ export class NpmModule implements ModuleSpec {
 			Promise.resolve(filePath) :
 			new Promise((resolve)=> {	//reject on throw
 				var {path, production} = this,
-					pkg = require(join(path, 'package.json')),
+					pkg = json(join(path, 'package.json')),
 					entryPoint = this.entryPoint || pkg.main,
 					packName = this.name + (opts.versionName ? '@' + this.version : ''),
 					fuse = FuseBox.init({
