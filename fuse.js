@@ -13,10 +13,12 @@ const fuse = FuseBox.init({
 		HTMLPlugin(),
 		JSONPlugin()
 	],
-	package: 'fuse-npm'
+	package: {
+		name: 'fuse-npm',
+		main: 'index.ts'
+	}
 });
 fuse.bundle("fuse-npm")
-	.watch()
 	.instructions('> [index.ts]');
 
 fuse.run();
