@@ -2,7 +2,8 @@ node_modules
 fuse_modules/prod/**/*
 fuse_modules/temp/**/*
 fuse_modules/raw/**/*
-fuse_modules/*.json
-!fuse_modules/raw/tsconfig.json
+fuse_modules/versionCache.json
 dist
 .vscode
+.yalc
+yalc.lock

@@ -4,6 +4,7 @@ import extend = require('extend')
 import {join} from 'path'
 import {mv, mkdir, test} from 'shelljs'
 import {readFileSync, writeFileSync} from 'fs'
+import {DepsMetaPlugin} from 'fuse-async/server'
 
 declare var process: any;
 //TODO1: separate in several files
@@ -119,8 +120,9 @@ export class NpmClient {
 }
 
 export interface ModuleFuseOptions {
-	versionName?: boolean
-	globals?: boolean
+	naming?: (name: string, version: string)=> string;
+	globals?: boolean;
+	lazy?: boolean;
 }
 
 export class NpmModule implements ModuleSpec {
@@ -149,33 +151,60 @@ export class NpmModule implements ModuleSpec {
 				var {path, production} = this,
 					pkg = json(join(path, 'package.json')),
 					entryPoint = this.entryPoint || pkg.main,
-					packName = this.name + (opts.versionName ? '@' + this.version : ''),
+					packName = opts.naming ? opts.naming(this.name, this.version) : this.name,
 					fuse = FuseBox.init({
 						homeDir: path,
 						output: join(rootPath, fusedPath, "$name.js"),
 						cache: false,
-						plugins: [
+						plugins: (opts.lazy?[
+							[TypeScriptHelpers(), DepsMetaPlugin()],
+							[VuePlugin(), DepsMetaPlugin()],
+							DepsMetaPlugin()
+						] : [
 							TypeScriptHelpers(),
+							VuePlugin()
+						]).concat([
 							EnvPlugin({NODE_ENV: production ? "production" : "development"}),
 							CSSPlugin(),
 							production && UglifyJSPlugin(),
-							VuePlugin(),
 							HTMLPlugin(),
 							JSONPlugin()
-						],
-						package: packName,
+						]),
+						package: {
+							name: packName,
+							main: entryPoint
+						},
 						globals: opts.globals ? {[packName]: '*'} : {}
 					});
 				if(!entryPoint)
 					throw new Error(`No entry point defined for module ${this.name}@${this.version}`);
-				
-				fuse.bundle(this.fileName)
-					.instructions(`> ${entryPoint}`)
-					.completed(proc=> {
-						console.assert(filePath === proc.filePath, 'filePath consistency');
-						resolve(proc.filePath);
+				var depProm;
+				if(opts.naming) {
+					var dependencies = json(path+'/package.json').dependencies, proms = [];
+					for(let dependency in dependencies)
+						proms.push(this.client.version(dependency, dependencies[dependency]));
+					 depProm = Promise.all(proms).then(vers=> {
+						var i = 0, aliases = {};
+						for(let dependency in dependencies)
+							aliases[dependency] = opts.naming(dependency, vers[i++]);
+						return aliases;
 					});
+				} else {
+					let aliases = {};
+						for(let dependency in dependencies)
+							aliases[dependency] = dependency;
+					depProm = Promise.resolve(aliases);
+				}
+				depProm.then(aliases=> {
+					fuse.bundle(this.fileName)
+						.instructions((opts.lazy?'':'>')+entryPoint)
+						.alias(aliases)
+						.completed(proc=> {
+							console.assert(filePath === proc.filePath, 'filePath consistency');
+							resolve(proc.filePath);
+						});
 					fuse.run();
+				});
 			});
 	}
 }

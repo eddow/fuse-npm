@@ -9,6 +9,7 @@
   "author": "fmdm",
   "license": "MIT",
   "dependencies": {
+    "fuse-async": "file:.yalc/fuse-async",
     "fuse-box": "^2.0.0",
     "npm": "^4.5.0",
     "shelljs": "^0.7.7",
@@ -25,5 +26,6 @@
   "bugs": {
     "url": "https://github.com/eddow/fuse-npm/issues"
   },
-  "homepage": "https://github.com/eddow/fuse-npm#readme"
+  "homepage": "https://github.com/eddow/fuse-npm#readme",
+  "devDependencies": {}
 }
